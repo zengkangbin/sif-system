@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SIF 综合处理 - 历史</title><link rel="stylesheet" href="/static/styles.css"><style>.history-page{max-width:1200px;margin:28px auto;padding:0 20px}.history-head{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:18px}.history-head h1{margin:0;font-size:23px}.history-actions{display:flex;gap:8px;flex-wrap:wrap}.plain-link{color:var(--green);text-decoration:none}.history-table{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:16px}.history-table table{min-width:760px}</style></head>
+<body>
+  <main class="history-page">
+    <div class="history-head"><div><h1>历史分析</h1><div id="user" class="muted"></div></div><div class="history-actions"><a class="plain-link" href="/">返回工作台</a><button class="secondary-button" id="logout">退出</button></div></div>
+    <section class="history-table"><div class="history-actions" style="margin-bottom:14px"><button class="secondary-button" id="download-all">下载全部 JSON</button></div><div class="table-wrap"><table><thead><tr><th>产品标题</th><th>决策策略</th><th>任务 ID</th><th>ASIN 数</th><th>状态</th><th>阶段</th><th>进度</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="body"><tr><td colspan="9" class="muted">加载中...</td></tr></tbody></table></div></section>
+  </main>
+  <script>
+    const token=localStorage.getItem('sif_token')||'';const headers={Authorization:'Bearer '+token};
+    const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    async function load(){const me=await fetch('/api/auth/me',{headers});if(!me.ok)return location.href='/static/auth.html';const md=await me.json();document.getElementById('user').textContent='用户：'+md.user.username;const response=await fetch('/api/history',{headers});if(!response.ok)return;const data=await response.json();document.getElementById('body').innerHTML=data.data.length?data.data.map(x=>`<tr><td>${esc(x.product_title||"未命名产品")}</td><td>${esc(x.strategy_name||"综合增长")}</td><td>${esc(x.job_id.slice(0,12))}</td><td>${x.asins.length}</td><td>${esc(x.status)}</td><td>${esc(x.stage)}</td><td>${x.progress}%</td><td>${esc(x.created_at)}</td><td>${x.status==='completed'?`<a class="plain-link export-link" href="/api/history/${encodeURIComponent(x.job_id)}/export">导出</a>`:'-'}</td></tr>`).join(''):'<tr><td colspan="9" class="muted">暂无历史记录</td></tr>';}
+    document.addEventListener('click',async event=>{if(!event.target.classList.contains('export-link'))return;event.preventDefault();const response=await fetch(event.target.href,{headers});if(!response.ok)return;const anchor=document.createElement('a');anchor.href=URL.createObjectURL(await response.blob());anchor.download='sif-analysis.json';anchor.click();});
+    document.getElementById('download-all').onclick=async()=>{const response=await fetch('/api/history',{headers});const data=await response.json();const anchor=document.createElement('a');anchor.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));anchor.download='sif-history.json';anchor.click();};
+    document.getElementById('logout').onclick=async()=>{await fetch('/api/auth/logout',{method:'POST',headers});localStorage.removeItem('sif_token');location.href='/static/auth.html';};load();
+  </script>
+</body>
+</html>

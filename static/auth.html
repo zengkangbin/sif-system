@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SIF 综合处理 - 登录</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    body{min-height:100vh;display:grid;place-items:center}
+    .auth-card{width:min(430px,calc(100% - 32px));background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:28px}
+    .auth-card h1{margin:0 0 6px;font-size:23px}.auth-card p{margin:0 0 22px;color:var(--muted);font-size:13px}
+    .auth-tabs{display:flex;gap:6px;margin-bottom:18px}.auth-tabs button{flex:1;border:1px solid var(--line);background:#fff;padding:9px;border-radius:5px;cursor:pointer}.auth-tabs button.active{background:var(--green);color:#fff;border-color:var(--green)}
+    .auth-card label{display:block;margin:12px 0}.auth-card input{margin-top:6px}.auth-error{min-height:22px;color:#b44928;font-size:13px}
+  </style>
+</head>
+<body>
+  <main class="auth-card">
+    <h1>SIF 综合处理</h1><p>登录后使用竞品分析、历史数据和导出功能。</p>
+    <div class="auth-tabs"><button class="active" data-mode="login">登录</button><button data-mode="register">注册</button></div>
+    <div id="auth-error" class="auth-error"></div>
+    <form id="auth-form"><label>用户名<input id="username" required minlength="3" maxlength="50" autocomplete="username"></label><label>密码<input id="password" type="password" required minlength="6" maxlength="128" autocomplete="current-password"></label><button class="primary-button" style="width:100%;margin-top:12px" type="submit" id="submit">登录</button></form>
+  </main>
+  <script>
+    let mode='login';
+    const errorBox=document.getElementById('auth-error');
+    document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{mode=button.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===button));document.getElementById('submit').textContent=mode==='login'?'登录':'注册';errorBox.textContent='';});
+    document.getElementById('auth-form').onsubmit=async event=>{event.preventDefault();errorBox.textContent='';const button=document.getElementById('submit');button.disabled=true;try{const response=await fetch('/api/auth/'+mode,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('username').value.trim(),password:document.getElementById('password').value})});const data=await response.json();if(!response.ok)throw new Error(data.detail||'操作失败');localStorage.setItem('sif_token',data.token);location.href='/';}catch(error){errorBox.textContent=error.message;}finally{button.disabled=false;}};
+    fetch('/api/auth/me',{headers:{Authorization:'Bearer '+(localStorage.getItem('sif_token')||'')}}).then(response=>{if(response.ok)location.href='/';});
+  </script>
+</body>
+</html>

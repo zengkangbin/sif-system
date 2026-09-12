@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SIF 综合处理</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260911-selling-point-archive">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">AMZ OPTIMIZATION</div>
+      <h1>SIF 综合处理</h1>
+    </div>
+    <div class="topbar-actions">
+      <div id="health-badge" class="health-badge">检查连接中</div>
+      <span id="current-user" class="current-user"></span>
+      <a id="admin-link" class="topbar-link hidden" href="/static/admin.html">后台</a>
+      <button id="logout-button" class="topbar-link hidden" type="button">退出</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel input-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>创建竞品分析</h2>
+          <p>输入产品事实和 3-10 个竞品 ASIN，生成关键词、画像和 Listing 草稿。</p>
+        </div>
+        <span class="step-chip">01 输入</span>
+      </div>
+
+      <form id="analysis-form">
+        <div class="form-grid">
+          <label>站点
+            <select id="country"><option value="US">美国 US</option><option value="UK">英国 UK</option><option value="DE">德国 DE</option><option value="JP">日本 JP</option></select>
+          </label>
+          <label>产品名称<input id="product_name" placeholder="例如 Portable Wireless Charger" required></label>
+        </div>
+
+        <div class="strategy-field">
+          <label for="strategy">决策策略
+            <select id="strategy">
+              <option value="comprehensive">综合增长｜SEO、语义搜索、转化和广告整体联动</option>
+              <option value="seo_growth">SEO Ranking Growth｜扩大高价值关键词覆盖和自然排名</option>
+              <option value="conversion_first">Conversion First｜优先提升 Listing 转化率</option>
+              <option value="new_product">New Product Differentiation｜新品/升级版差异化定位</option>
+              <option value="listing_refresh">Listing Refresh &amp; Second Growth｜老 ASIN 刷新和二次增长</option>
+            </select>
+          </label>
+          <div id="strategy-help" class="hint">综合分析关键词、消费者需求、Listing 内容和广告策略。</div>
+        </div>
+
+        <div class="gpt-settings">
+          <label for="gpt-provider">GPT 调用节点
+            <select id="gpt-provider">
+              <option value="middleman">中转站</option>
+              <option value="official" selected>官网（推荐）</option>
+              <option value="auto">自动故障切换（中转站 → 官网）</option>
+            </select>
+          </label>
+          <label for="gpt-model">GPT 模型
+            <select id="gpt-model" required>
+              <option value="gpt-5.6-sol">gpt-5.6-sol</option>
+              <option value="gpt-5.5" selected>gpt-5.5</option>
+              <option value="gpt-5-mini">gpt-5-mini</option>
+            </select>
+          </label>
+          <div id="gpt-provider-help" class="hint">直接调用配置文件中的 OpenAI 官网接口和密钥。</div>
+        </div>
+
+        <div class="operator-notes-field">
+          <label for="operator_notes">运营补充信息
+            <textarea id="operator_notes" rows="12" maxlength="20000" placeholder="请自由填写运营认为重要的内容，格式不限，可分段填写。例如：
+产品材质、尺寸、重量、功能、适用人群、使用场景、包装内容、兼容性、产品限制、认证信息、差异化卖点、竞品对比、价格定位、季节性、库存情况、广告方向、关键词偏好、禁止使用的表达、合规要求，以及其他注意事项。
+
+信息越完整，关键词分类、消费者画像和标题/五点/Q&A越贴近实际；不确定的内容请标注“待确认”。"></textarea>
+          </label>
+          <div class="hint">这是非固定格式的运营资料区。系统会把内容交给关键词分析和 GPT，并区分已确认事实、运营策略与待验证事项；发布前请核对生成结果。</div>
+        </div>
+
+        <div class="asin-block">
+          <div class="label-row"><label for="asins">竞品 ASIN</label><span id="asin-count">0 / 10</span></div>
+          <textarea id="asins" rows="5" placeholder="每行一个，也支持逗号或空格分隔&#10;B0XXXXXXXX&#10;B0YYYYYYYY&#10;B0ZZZZZZZZ" required></textarea>
+          <div class="hint">第一版建议先输入 3 个 ASIN。SIF 调用按竞品逐个获取关键词信号，结果会保留来源 ASIN。</div>
+        </div>
+
+        <div class="form-actions">
+          <button class="primary-button" type="submit">开始分析 <span aria-hidden="true">→</span></button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel progress-panel">
+      <div class="panel-heading"><div><h2>处理进度</h2><p id="job-message">尚未创建任务</p></div><span id="job-status" class="status-chip">待开始</span></div>
+      <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+      <div class="stage-list">
+        <div data-stage="sif"><span>01</span><strong>SIF 数据</strong><small>竞品资料和流量词</small></div>
+        <div data-stage="keywords"><span>02</span><strong>关键词</strong><small>清洗、分类、P0-P4</small></div>
+        <div data-stage="selling_points"><span>03</span><strong>选择卖点</strong><small>运营确认内容方向</small></div>
+        <div data-stage="gpt"><span>04</span><strong>AI 分析</strong><small>画像和内容生成</small></div>
+        <div data-stage="complete"><span>05</span><strong>完成</strong><small>结果可查看和导出</small></div>
+      </div>
+    </section>
+
+    <section id="selling-point-panel" class="panel selling-point-panel hidden">
+      <div class="panel-heading">
+        <div><h2>选择商品卖点</h2><p>根据 SIF 数据生成的候选方向。请选择本次内容要重点表达的卖点，可多选。</p></div>
+        <span class="step-chip">03 确认</span>
+      </div>
+      <form id="selling-point-form">
+        <div id="selling-point-list" class="selling-point-list"></div>
+        <div class="selling-point-actions">
+          <span id="selling-point-count" class="muted">已选择 0 项</span>
+          <button id="confirm-selling-points" class="primary-button" type="submit">按所选卖点继续生成</button>
+        </div>
+      </form>
+    </section>
+
+    <details id="history-panel" class="history-panel" open>
+      <summary><span>历史分析记录</span><span id="history-count" class="history-count">加载中...</span></summary>
+      <div id="history-list" class="history-list"><p class="muted">正在加载历史任务...</p></div>
+      <div id="history-pagination" class="history-pagination hidden" aria-label="历史记录分页">
+        <button id="history-prev" class="secondary-button" type="button" data-history-page="prev">上一页</button>
+        <span id="history-page-info" class="history-page-info"></span>
+        <button id="history-next" class="secondary-button" type="button" data-history-page="next">下一页</button>
+      </div>
+    </details>
+
+    <section id="results" class="panel results-panel hidden">
+      <div class="panel-heading"><div><h2>分析结果</h2><p id="result-summary">-</p></div><div class="result-actions"><button id="regenerate-button" class="secondary-button" title="复用本次已获取的 SIF 数据，不会再次扣除 SIF 点数" type="button">重新生成 GPT 内容</button><button id="export-button" class="secondary-button" type="button">导出 JSON</button></div></div>
+      <div id="selected-selling-point-summary" class="selected-selling-point-summary"></div>
+      <details id="selling-point-archive" class="selling-point-archive hidden">
+        <summary><span id="selling-point-archive-summary">候选卖点</span></summary>
+        <div id="selling-point-archive-list" class="selling-point-list"></div>
+        <div class="selling-point-actions">
+          <span class="muted">候选卖点会随任务保留。勾选后可换一组卖点重新生成内容，复用原 SIF 数据且不会再次消耗 SIF 点数。</span>
+          <button id="reuse-selling-points" class="secondary-button" type="button">按所选卖点重新生成</button>
+        </div>
+      </details>
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="keywords">关键词</button>
+        <button class="tab" data-tab="personas">消费者画像</button>
+        <button class="tab" data-tab="listing">标题 / 五点 / Q&A</button>
+        <button class="tab" data-tab="shopping">购物场景</button>
+        <button class="tab" data-tab="sif">SIF 原始摘要</button>
+      </div>
+      <div id="tab-keywords" class="tab-content active"></div>
+      <div id="tab-personas" class="tab-content"></div>
+      <div id="tab-listing" class="tab-content"></div>
+      <div id="tab-shopping" class="tab-content"></div>
+      <div id="tab-sif" class="tab-content"></div>
+    </section>
+  </main>
+  <script src="/static/app.js?v=20260911-fix-asin-and-images"></script>
+</body>
+</html>
